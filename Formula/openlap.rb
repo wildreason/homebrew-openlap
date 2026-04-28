@@ -166,12 +166,22 @@ class Openlap < Formula
       File.delete(dst)
     elsif File.exist?(dst)
       backup = "#{dst}.pre-brew-#{Time.now.to_i}"
-      opoo "Existing #{dst} is a real file/dir; moving aside to:"
-      opoo "  #{backup}"
-      # Shell mv is more predictable than FileUtils.mv inside a Formula's
-      # post_install context — Ruby's FileUtils raises in opaque ways
-      # when the rename crosses ownership/extended-attribute boundaries.
-      raise "failed to move #{dst} aside" unless system("/bin/mv", dst, backup)
+      # quiet_system: returns false on non-zero exit, no stderr noise.
+      # Common failure on dev boxes: macOS extended attributes on user-
+      # created dirs (com.apple.provenance) make /bin/mv return EPERM.
+      # Fresh Macs (criterion #13 target) don't carry these xattrs.
+      if quiet_system("/bin/mv", dst, backup)
+        opoo "Moved existing #{dst} aside to:"
+        opoo "  #{backup}"
+      else
+        opoo "Existing #{dst} could not be moved aside (likely macOS"
+        opoo "extended-attribute lock). Skipping symlink for this entry."
+        opoo "To migrate manually:"
+        opoo "  xattr -dr com.apple.provenance #{dst}"
+        opoo "  mv #{dst} #{backup}"
+        opoo "  ln -s #{src} #{dst}"
+        return
+      end
     end
     File.symlink(src, dst)
   end
