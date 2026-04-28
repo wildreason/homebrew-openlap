@@ -76,9 +76,10 @@ class Openlap < Formula
   end
 
   def post_install
-    # Criterion #4: install/upgrade the npm proxy. Idempotent — npm install
-    # -g is a no-op when the requested version is already present.
-    system "#{Formula["node"].opt_bin}/npm", "install", "-g", "@openlap/openlap"
+    # Order matters: do the always-safe filesystem steps first (symlinks),
+    # then the failure-prone npm install last. If npm install dies (most
+    # commonly EPERM from stale ~/.npm permissions), the rest of the install
+    # is still complete and the user can fix npm + retry the proxy step.
 
     # Criterion #5: symlink skills + agents into ~/.claude. Idempotent —
     # safe_link replaces existing symlinks transparently and backs up real
@@ -124,6 +125,21 @@ class Openlap < Formula
       next unless File.exist?(src)
 
       safe_link(src, "#{legacy_bin}/#{script}")
+    end
+
+    # Criterion #4: install/upgrade the npm proxy LAST. Failure-tolerant —
+    # the most common cause of a post_install failure is stale ~/.npm
+    # permissions (root-owned files from an older sudo npm). When that
+    # happens we still want symlinks + service plist already in place;
+    # the user can fix npm + retry the one command, no full reinstall.
+    npm = "#{Formula["node"].opt_bin}/npm"
+    unless quiet_system(npm, "install", "-g", "@openlap/openlap")
+      opoo "npm install -g @openlap/openlap failed."
+      opoo "Most common cause: ~/.npm has root-owned cache files."
+      opoo "Fix and retry:"
+      opoo "  sudo chown -R $(id -u):$(id -g) ~/.npm"
+      opoo "  npm install -g @openlap/openlap"
+      opoo "Skills, agents, service plist are already installed."
     end
 
     # Criterion #8: legacy-pulsed probe. Warn (do not fail) if :7788 is
