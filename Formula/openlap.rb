@@ -19,7 +19,7 @@
 class Openlap < Formula
   desc "Local runtime for openlap.app — agent coordination MCP proxy + pulsed"
   homepage "https://openlap.app"
-  version "0.1.1"
+  version "0.1.2"
   license "MIT"
 
   # url + sha256 point at the GitHub Release artifacts produced by the
@@ -31,12 +31,12 @@ class Openlap < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/wildreason/openlap/releases/download/v0.1.1/openlap-0.1.1-darwin-arm64.tar.gz"
-      sha256 "c01d71b49762a277eb71030889b8a3099bce951861c6f87f0449b6a18ae1d831"
+      url "https://github.com/wildreason/homebrew-openlap/releases/download/v0.1.2/openlap-0.1.2-darwin-arm64.tar.gz"
+      sha256 "21ab878c75400f5280d7459cde76994a60737028863171fa6452ef1e7bf1b126"
     end
     on_intel do
-      url "https://github.com/wildreason/openlap/releases/download/v0.1.1/openlap-0.1.1-darwin-amd64.tar.gz"
-      sha256 "bf3ac2236418ecc8e41d74ac1983d888f501f43b7663c62eba20bc95b41dd892"
+      url "https://github.com/wildreason/homebrew-openlap/releases/download/v0.1.2/openlap-0.1.2-darwin-amd64.tar.gz"
+      sha256 "f7b55aa32f2e20efeed8f8daf1922a3dcde27871b7c481ce5ffa66502facc9d4"
     end
   end
 
