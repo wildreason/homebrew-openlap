@@ -57,15 +57,20 @@ class Openlap < Formula
     bin.install "bin/pulsed"
     bin.install "bin/wrspawn"
 
-    # Wrapper script that launchd runs (boots both proxy + pulsed).
-    # Generated here so it can reference Cellar paths cleanly.
+    # Wrapper script that launchd runs (boots the long-running daemon).
+    # Today only `pulsed` is a daemon — the MCP proxy is stdio-only and
+    # gets invoked by Claude Code per-session, not by launchd. After
+    # OLP-197 ships (pulsed → TS, single Node process for proxy+pulsed),
+    # this wrapper bumps to `openlap start` instead. Until then: pulsed
+    # alone, started under brew services for autostart-on-login.
     (bin/"openlap-wrapper").write <<~SH
       #!/bin/bash
-      # openlap-wrapper: launchd entrypoint — boots npm proxy + pulsed.
-      # Logs to ~/.openlap/logs/{openlap,pulsed}.log via openlap start's
-      # built-in log rotation (OLP-197 criterion #10 — TS port lap).
+      # openlap-wrapper: launchd entrypoint for the local runtime.
+      # Currently boots only pulsed; npm proxy is stdio (per-session, not
+      # daemonized). Bumps to combined `openlap start` after OLP-197.
       set -e
-      exec "#{HOMEBREW_PREFIX}/bin/openlap" start --with-pulsed "#{opt_bin}/pulsed"
+      mkdir -p "$HOME/.openlap/logs"
+      exec "#{opt_bin}/pulsed"
     SH
     (bin/"openlap-wrapper").chmod 0755
 
