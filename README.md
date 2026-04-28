@@ -2,30 +2,56 @@
 
 Homebrew tap for [openlap.app](https://openlap.app) — internal Mac team installer.
 
+Bundles `pulsed` (local DM/fleet/RPC runtime) + `wrspawn` (x-man coordinator) + skill files + agent definitions + npm-installed proxy into a single `brew install` command. Source stays private; release artifacts live in this tap repo.
+
 ## Install
 
 ```sh
 brew tap wildreason/openlap
 brew install openlap
-openlap setup
-brew services start openlap
 ```
 
-## What it bundles
+## First-run setup (3 commands, run once in this order)
 
-- `pulsed` — local DM/fleet/RPC/socket runtime
-- `wrspawn` + `nudge-agent` + `ask-agent` + `clone` — x-man coordinator tooling
-- Skill files (`x-man`, `execution-method`) symlinked into `~/.claude/skills/`
-- Agent definitions (`x-man`, `adversary`, `admin`) symlinked into `~/.claude/agents/` and `~/wildreason/.claude/agents/`
-- npm-installed `@openlap/openlap` proxy (post_install hook)
-- Single launchd plist via `brew services` running proxy + pulsed
+```sh
+openlap setup                              # adds openlap MCP server to Claude Code
+openlap login                              # signs you in via Abe OAuth (browser opens)
+openlap workspace --agent-handle=x-man     # provisions x-man under your deployer
+```
+
+Then start the local runtime under launchd:
+
+```sh
+brew services start openlap                # autostart on login + restart on crash
+```
+
+Verify everything is wired:
+
+```sh
+openlap doctor
+```
+
+`doctor` runs ~14 checks across Node/npm/claude/tmux/git, the `:7788` port state, your auth token freshness, the `x-man` agent provisioning, `~/.claude/{skills,agents}/` symlinks, and the `brew services` unit. Each non-PASS check prints a one-line fix hint.
+
+## What's bundled
+
+| Artifact | Path | Notes |
+|---|---|---|
+| `pulsed` | `bin/` | Local DM/fleet/RPC/socket runtime |
+| `wrspawn` | `bin/` | x-man's primary CLI |
+| `nudge-agent`, `ask-agent`, `clone` | `share/openlap/skills/x-man/scripts/` + `~/.local/bin/` symlinks | Bash helpers, ride along with the skill |
+| `x-man` skill | `share/openlap/skills/x-man/` → `~/.claude/skills/x-man` | Behavioral doc + scripts |
+| `execution-method` skill | `share/openlap/skills/execution-method/` → `~/.claude/skills/execution-method` | Patterns |
+| `x-man` agent def | `share/openlap/agents/x-man.md` → `~/.claude/agents/x-man.md` | Claude Code agent |
+| `@openlap/openlap` proxy | post-install: `npm install -g @openlap/openlap` | Stdio MCP bridge |
+| launchd plist | `brew services start openlap` | Runs `pulsed` |
 
 ## Brew dependencies
 
-The formula brings:
+The formula brings (declared `depends_on`):
 
 - `node` (>=18) — runs the npm proxy
-- `tmux` — fleet spawn + x-man pane management
+- `tmux` — fleet spawn handler + x-man pane management
 
 You install separately (flagged by `openlap doctor`):
 
@@ -33,13 +59,36 @@ You install separately (flagged by `openlap doctor`):
 
 ## Migrating from `go install ./cmd/pulsed`
 
+If you previously ran the legacy Go pulsed daemon, stop it before starting the brew-managed service:
+
 ```sh
 pkill pulsed
 brew services restart openlap
 ```
 
-## Status
+`brew install` and `openlap doctor` both detect the legacy daemon on `:7788` and print this hint automatically.
 
-Tracking lap: [OLP-203](https://openlap.app/barath/openlap-package) — Plan B brew tap installer.
+## Auto-update
 
-This tap is internal-team-only today. External distribution requires Apple Developer code-signing (parked).
+The npm proxy (`@openlap/openlap`) self-updates from npm on every `openlap` invocation per its v1.10.0+ behavior — preserved across the brew install path. To opt out:
+
+```sh
+export OPENLAP_SKIP_AUTOUPDATE=1
+```
+
+For the bundled binaries (`pulsed`, `wrspawn`) and skill/agent files, run `brew upgrade openlap` to pull a new release.
+
+## Service lifecycle
+
+```sh
+brew services start openlap     # boot pulsed under launchd, autostart on login
+brew services stop openlap      # stop + release :7788
+brew services restart openlap   # graceful restart (e.g. after upgrade)
+brew services list              # status
+```
+
+## Tracking
+
+[OLP-203](https://openlap.app/barath/openlap-package) — Plan B brew tap installer.
+
+Internal-team scope. External distribution requires Apple Developer code-signing (parked, not on roadmap today).
