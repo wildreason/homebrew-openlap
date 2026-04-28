@@ -52,12 +52,12 @@ class Openlap < Formula
   #     the brew install with a confusing error.
 
   def install
-    # Binaries — pulsed + x-man's tooling.
+    # Compiled binaries — pulsed (this repo) + wrspawn (wildreason/spawn).
+    # Bash helpers (nudge-agent, ask-agent, clone) live inside
+    # share/openlap/skills/x-man/scripts/ as of spawn v0.1.1's reorg —
+    # post_install creates ~/.local/bin/ symlinks for back-compat.
     bin.install "bin/pulsed"
     bin.install "bin/wrspawn"
-    bin.install "bin/nudge-agent"
-    bin.install "bin/ask-agent"
-    bin.install "bin/clone"
 
     # Wrapper script that launchd runs (boots both proxy + pulsed).
     # Generated here so it can reference Cellar paths cleanly.
@@ -83,16 +83,19 @@ class Openlap < Formula
     system "#{Formula["node"].opt_bin}/npm", "install", "-g", "@openlap/openlap"
 
     # Criterion #5: symlink skills + agents into ~/.claude. Idempotent —
-    # ln -sfn replaces existing symlinks but leaves real files alone.
+    # ln_sf replaces existing symlinks but leaves real files alone.
     home = Dir.home
     skills_target = "#{home}/.claude/skills"
     agents_target = "#{home}/.claude/agents"
     org_agents_target = "#{home}/wildreason/.claude/agents"
+    legacy_bin = "#{home}/.local/bin"
 
-    [skills_target, agents_target, org_agents_target].each do |dir|
+    [skills_target, agents_target, org_agents_target, legacy_bin].each do |dir|
       mkdir_p(dir)
     end
 
+    # Whole-tree symlinks: scripts/ rides along inside skills/x-man so the
+    # skill, its docs, and its helper scripts stay co-located.
     Dir["#{share}/openlap/skills/*"].each do |src|
       name = File.basename(src)
       dst = "#{skills_target}/#{name}"
@@ -111,6 +114,18 @@ class Openlap < Formula
       next unless File.exist?(src)
 
       ln_sf(src, "#{org_agents_target}/#{agent}.md")
+    end
+
+    # Back-compat: ~/.local/bin/ symlinks pointing into the skill's scripts/.
+    # Anything that calls `nudge-agent` / `ask-agent` / `clone` directly
+    # (via PATH) keeps working post-spawn-v0.1.1 reorg. ~/.local/bin/ is
+    # already on PATH for x-man's setup; harmless on machines that don't
+    # have it on PATH.
+    %w[nudge-agent ask-agent clone].each do |script|
+      src = "#{share}/openlap/skills/x-man/scripts/#{script}"
+      next unless File.exist?(src)
+
+      ln_sf(src, "#{legacy_bin}/#{script}")
     end
 
     # Criterion #8: legacy-pulsed probe. Warn (do not fail) if :7788 is
