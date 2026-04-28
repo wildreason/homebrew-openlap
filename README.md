@@ -92,3 +92,24 @@ brew services list              # status
 [OLP-203](https://openlap.app/barath/openlap-package) — Plan B brew tap installer.
 
 Internal-team scope. External distribution requires Apple Developer code-signing (parked, not on roadmap today).
+
+## Maintainer Notes
+
+### `HOMEBREW_TAP_PAT` rotation
+
+The release pipeline (`wildreason/openlap` → `.github/workflows/release.yml`) uses a fine-grained PAT named `HOMEBREW_TAP_PAT` to upload release artifacts to this tap. **PATs expire after 90 days** (currently expires Thu, May 28 2026 — bump this date when rotated).
+
+If the PAT lapses, the release workflow will fail at the upload step with `HTTP 401`. Every release post-expiry 401s with no other warning.
+
+**At day-75 (~Sat, May 13 2026):**
+
+1. Generate a new fine-grained PAT at https://github.com/settings/personal-access-tokens/new
+   - Resource owner: `wildreason` (NOT your personal account — check the dropdown)
+   - Repository access: only `wildreason/homebrew-openlap`
+   - Permissions: Contents → Read and write
+   - Expiration: 90 days
+2. Update the secret: `gh secret set HOMEBREW_TAP_PAT --repo wildreason/openlap --body "github_pat_NEW_TOKEN"`
+3. Bump the expiry date in this section so the next maintainer knows when to rotate.
+4. Optionally re-run a recent failed release to confirm it now succeeds: `gh run rerun <id> --repo wildreason/openlap`
+
+A calendar reminder for the day-75 mark in your team calendar is the simplest forcing function. A doctor-side health probe (pinging the GitHub API with the secret to verify it still authenticates) is the proper engineering answer; tracked under a follow-up lap.
