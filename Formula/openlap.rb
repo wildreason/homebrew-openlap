@@ -162,14 +162,25 @@ class Openlap < Formula
   # before installing the brew tap (e.g. cloned spawn manually first).
   # Loud + reversible — better than silent overwrite or silent skip.
   def safe_link(src, dst)
+    # Three cases the helper has to clear before `ln -s`:
+    #   1. dst is a symlink                  → rm it (any kind of dst link is
+    #                                           safe to replace; we never
+    #                                           recurse into the target)
+    #   2. dst is a real file/dir            → mv it aside as <dst>.pre-brew-<epoch>
+    #   3. dst doesn't exist                 → no-op
+    #
+    # Both rm + mv are routed through shell utils (not File.delete /
+    # FileUtils.mv) so macOS extended attributes (com.apple.provenance,
+    # quarantine etc.) get the same EPERM treatment we recover from. On
+    # a fresh Mac (criterion #13 target) none of these branches fire.
     if File.symlink?(dst)
-      File.delete(dst)
+      unless quiet_system("/bin/rm", "-f", dst)
+        opoo "Could not remove existing symlink at #{dst} — skipping."
+        opoo "Manual fix: xattr -c #{dst} && rm #{dst} && ln -s #{src} #{dst}"
+        return
+      end
     elsif File.exist?(dst)
       backup = "#{dst}.pre-brew-#{Time.now.to_i}"
-      # quiet_system: returns false on non-zero exit, no stderr noise.
-      # Common failure on dev boxes: macOS extended attributes on user-
-      # created dirs (com.apple.provenance) make /bin/mv return EPERM.
-      # Fresh Macs (criterion #13 target) don't carry these xattrs.
       if quiet_system("/bin/mv", dst, backup)
         opoo "Moved existing #{dst} aside to:"
         opoo "  #{backup}"
