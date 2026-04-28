@@ -19,26 +19,24 @@
 class Openlap < Formula
   desc "Local runtime for openlap.app — agent coordination MCP proxy + pulsed"
   homepage "https://openlap.app"
-  version "0.1.0"
+  version "0.1.1"
   license "MIT"
 
-  # NOTE: (OLP-203 criterion #1): url + sha256 are placeholders. Criterion #2
-  # wires up the GitHub Actions release pipeline that cross-compiles pulsed +
-  # wrspawn for darwin-arm64/amd64 on tag push, uploads the tarball to
-  # GitHub Releases, and PR-bumps these fields. Until then this formula will
-  # not actually install — `brew install --dry-run` is the only thing wired
-  # up at #1. See OLP-203 body for the full pipeline plan.
+  # url + sha256 point at the GitHub Release artifacts produced by the
+  # release.yml workflow in wildreason/openlap on `v*` tag push. Bump
+  # both fields in lockstep with each new release tag (criterion #11
+  # tightens this with an automated PR-bump).
   depends_on "node"
   depends_on "tmux"
 
   on_macos do
     on_arm do
-      url "https://github.com/wildreason/openlap/releases/download/v0.1.0/openlap-0.1.0-darwin-arm64.tar.gz"
-      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+      url "https://github.com/wildreason/openlap/releases/download/v0.1.1/openlap-0.1.1-darwin-arm64.tar.gz"
+      sha256 "c01d71b49762a277eb71030889b8a3099bce951861c6f87f0449b6a18ae1d831"
     end
     on_intel do
-      url "https://github.com/wildreason/openlap/releases/download/v0.1.0/openlap-0.1.0-darwin-amd64.tar.gz"
-      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+      url "https://github.com/wildreason/openlap/releases/download/v0.1.1/openlap-0.1.1-darwin-amd64.tar.gz"
+      sha256 "bf3ac2236418ecc8e41d74ac1983d888f501f43b7663c62eba20bc95b41dd892"
     end
   end
 
