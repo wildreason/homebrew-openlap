@@ -214,10 +214,14 @@ class Openlap < Formula
 
   def caveats
     <<~EOS
-      First-run setup:
-        openlap setup       # Abe OAuth + provision x-man under your deployer
-        openlap doctor      # verify everything is wired
-        brew services start openlap
+      First-run setup (run once, in this order):
+        openlap setup                              # adds openlap MCP server to Claude Code
+        openlap login                              # signs you in via Abe OAuth (browser)
+        openlap workspace --agent-handle=x-man     # provisions x-man under your deployer
+        brew services start openlap                # starts pulsed under launchd
+
+      Verify everything is wired:
+        openlap doctor
 
       Required external dep (not brew-installable):
         Claude CLI 2.x — install via `npm install -g @anthropic-ai/claude-code`
@@ -226,6 +230,9 @@ class Openlap < Formula
       If you previously ran `go install ./cmd/pulsed`, stop it first:
         pkill pulsed
         brew services restart openlap
+
+      Auto-update opt-out:
+        export OPENLAP_SKIP_AUTOUPDATE=1
     EOS
   end
 
