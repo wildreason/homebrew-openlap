@@ -81,7 +81,8 @@ class Openlap < Formula
     system "#{Formula["node"].opt_bin}/npm", "install", "-g", "@openlap/openlap"
 
     # Criterion #5: symlink skills + agents into ~/.claude. Idempotent —
-    # ln_sf replaces existing symlinks but leaves real files alone.
+    # safe_link replaces existing symlinks transparently and backs up real
+    # files/dirs aside (never clobbers user content).
     home = Dir.home
     skills_target = "#{home}/.claude/skills"
     agents_target = "#{home}/.claude/agents"
@@ -96,22 +97,21 @@ class Openlap < Formula
     # skill, its docs, and its helper scripts stay co-located.
     Dir["#{share}/openlap/skills/*"].each do |src|
       name = File.basename(src)
-      dst = "#{skills_target}/#{name}"
-      ln_sf(src, dst)
+      safe_link(src, "#{skills_target}/#{name}")
     end
 
     %w[x-man].each do |agent|
       src = "#{share}/openlap/agents/#{agent}.md"
       next unless File.exist?(src)
 
-      ln_sf(src, "#{agents_target}/#{agent}.md")
+      safe_link(src, "#{agents_target}/#{agent}.md")
     end
 
     %w[adversary admin].each do |agent|
       src = "#{share}/openlap/agents/#{agent}.md"
       next unless File.exist?(src)
 
-      ln_sf(src, "#{org_agents_target}/#{agent}.md")
+      safe_link(src, "#{org_agents_target}/#{agent}.md")
     end
 
     # Back-compat: ~/.local/bin/ symlinks pointing into the skill's scripts/.
@@ -123,7 +123,7 @@ class Openlap < Formula
       src = "#{share}/openlap/skills/x-man/scripts/#{script}"
       next unless File.exist?(src)
 
-      ln_sf(src, "#{legacy_bin}/#{script}")
+      safe_link(src, "#{legacy_bin}/#{script}")
     end
 
     # Criterion #8: legacy-pulsed probe. Warn (do not fail) if :7788 is
@@ -135,6 +135,26 @@ class Openlap < Formula
       opoo "  pkill pulsed"
       opoo "  brew services restart openlap"
     end
+  end
+
+  # Symlink that never clobbers user content. Cases:
+  #   - dst missing                 → create symlink
+  #   - dst is a symlink (any kind) → replace it (ln_sf semantics)
+  #   - dst is a real file/dir      → move aside to dst.pre-brew-<epoch>
+  #                                   then create symlink
+  # The backup-aside path catches users who hand-rolled skills/agents
+  # before installing the brew tap (e.g. cloned spawn manually first).
+  # Loud + reversible — better than silent overwrite or silent skip.
+  def safe_link(src, dst)
+    if File.symlink?(dst)
+      File.delete(dst)
+    elsif File.exist?(dst)
+      backup = "#{dst}.pre-brew-#{Time.now.to_i}"
+      opoo "Existing #{dst} is a real file/dir; moving aside to:"
+      opoo "  #{backup}"
+      mv(dst, backup)
+    end
+    File.symlink(src, dst)
   end
 
   # Criterion #6: brew services launchd integration. Single unit boots both
